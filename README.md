@@ -1,5 +1,6 @@
 # BPOM Drug Regulatory Affairs AI Agent
 ### Sistem Cerdas Asisten Regulasi Obat BPOM RI (Bilingual: Bahasa Indonesia & English)
+Link publikasi aplikasi: https://gratis-components-emotions-macintosh.trycloudflare.com/
 
 AI Agent spesialis regulasi obat (Regulatory Affairs) yang dirancang khusus untuk memandu proses registrasi obat ke **Badan Pengawas Obat dan Makanan Republik Indonesia (BPOM RI)**. Dilengkapi dengan logika penentuan jalur (pathway decision logic), daftar periksa modul ACTD/ICH CTD, verifikasi tarif resmi PNBP dan timeline evaluasi, audit kesenjangan dossier (gap-check), serta ekspor laporan resmi Microsoft Word (`.docx`).
 
