@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BPOM Drug Regulatory Affairs AI Assistant</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bpom: {
+              navy: '#1A365D',
+              blue: '#2B6CB0',
+              accent: '#319795',
+              dark: '#2D3748',
+              light: '#F7FAFC'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .badge-critical { background-color: #FFF5F5; color: #C53030; border: 1px solid #FEB2B2; }
+    .badge-major { background-color: #FFFAF0; color: #DD6B20; border: 1px solid #FBD38D; }
+    .badge-minor { background-color: #EDF2F7; color: #4A5568; border: 1px solid #CBD5E0; }
+    .badge-ok { background-color: #F0FFF4; color: #22543D; border: 1px solid #9AE6B4; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+  <!-- TOP NAVBAR -->
+  <header class="bg-bpom-navy text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="bg-white/10 p-2 rounded-lg text-emerald-400">
+          <i class="fa-solid fa-prescription-bottle-medical text-2xl"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight flex items-center gap-2">
+            BPOM Drug Regulatory Affairs
+            <span class="text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full font-semibold">AI Assistant</span>
+          </h1>
+          <p class="text-xs text-slate-300">Badan Pengawas Obat dan Makanan RI • PerBPOM 24/2017 jo. 13/2021 & 24/2023</p>
+        </div>
+      </div>
+
+      <!-- Controls: Scenario Selector & Language Toggle -->
+      <div class="flex items-center space-x-3">
+        <!-- Quick Load Scenarios -->
+        <div class="relative inline-block text-left">
+          <select id="scenarioSelector" onchange="loadScenario(this.value)" class="bg-slate-800 text-white text-xs rounded-lg px-3 py-2 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+            <option value="">⚡ Muat Skenario Uji (Load Scenario)...</option>
+            <option value="1">Skenario 1: Produk Biologi Impor (Trastuzumab)</option>
+            <option value="2">Skenario 2: Obat Generik Lokal (Metformin 500mg)</option>
+            <option value="3">Skenario 3: Audit Gap-Check Dossier Onkologi</option>
+            <option value="eval_a">📑 Evaluasi Dossier A: Biosimilar Siap NIE (MS)</option>
+            <option value="eval_b">📑 Evaluasi Dossier B: Generik Perlu Tambahan Data (TD)</option>
+            <option value="eval_c">📑 Evaluasi Dossier C: Onkologi Bermasalah (TMS)</option>
+          </select>
+        </div>
+
+        <!-- Download PPT Button -->
+        <a href="/download/presentation" download="BPOM_Drug_Regulatory_Affairs_AI_Assistant_Presentation.pptx" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-sm transition">
+          <i class="fa-solid fa-file-powerpoint text-amber-300"></i>
+          <span>Unduh PPT (.pptx)</span>
+        </a>
+
+        <!-- Language Switcher -->
+        <div class="flex rounded-lg bg-slate-800 p-0.5 border border-slate-700 text-xs font-semibold">
+          <button id="langBtnID" onclick="setLanguage('ID')" class="px-3 py-1.5 rounded-md bg-bpom-blue text-white transition">🇮🇩 ID</button>
+          <button id="langBtnEN" onclick="setLanguage('EN')" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition">🇬🇧 EN</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- TAB NAVIGATION -->
+  <div class="bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex space-x-8 -mb-px" aria-label="Tabs">
+        <button onclick="switchTab('pathwayTab')" id="btnTabPathway" class="tab-button border-bpom-blue text-bpom-blue whitespace-nowrap py-3.5 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+          <i class="fa-solid fa-route"></i>
+          <span data-i18n="tab_pathway">Penentuan Jalur & Biaya PNBP</span>
+        </button>
+        <button onclick="switchTab('dossierEvalTab')" id="btnTabDossierEval" class="tab-button border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3.5 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+          <i class="fa-solid fa-file-signature text-purple-600"></i>
+          <span data-i18n="tab_dossier_eval">Evaluasi Dossier (Dossier Evaluator)</span>
+        </button>
+        <button onclick="switchTab('checklistTab')" id="btnTabChecklist" class="tab-button border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3.5 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+          <i class="fa-solid fa-list-check"></i>
+          <span data-i18n="tab_checklist">Daftar Periksa ACTD</span>
+        </button>
+        <button onclick="switchTab('gapCheckTab')" id="btnTabGapCheck" class="tab-button border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3.5 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+          <i class="fa-solid fa-magnifying-glass-chart"></i>
+          <span data-i18n="tab_gap">Audit Kesenjangan Dossier (Gap-Check)</span>
+        </button>
+        <button onclick="switchTab('statutesTab')" id="btnTabStatutes" class="tab-button border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-3.5 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+          <i class="fa-solid fa-scale-balanced"></i>
+          <span data-i18n="tab_statutes">Dasar Hukum & Regulasi BPOM</span>
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+    <!-- ==================== TAB 1: PATHWAY & FEES ==================== -->
+    <div id="pathwayTab" class="tab-content block">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Column: Input Form -->
+        <div class="lg:col-span-5 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <h2 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-bpom-blue"></i>
+            <span data-i18n="form_title">Parameter Produk & Pengajuan</span>
+          </h2>
+
+          <form id="productForm" onsubmit="event.preventDefault(); calculatePathway();" class="space-y-4 text-xs sm:text-sm">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1" data-i18n="lbl_product_name">Nama Dagang Obat (Brand Name)</label>
+              <input type="text" id="product_name" value="Herclonix 440 mg Lyophilized Powder" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-bpom-blue focus:outline-none" required>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1" data-i18n="lbl_active_substance">Zat Aktif (INN)</label>
+                <input type="text" id="active_substance" value="Trastuzumab" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-bpom-blue focus:outline-none" required>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1" data-i18n="lbl_strength">Kekuatan / Dosis</label>
+                <input type="text" id="strength" value="440 mg / vial" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-bpom-blue focus:outline-none" required>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1" data-i18n="lbl_dosage_form">Bentuk Sediaan & Rute Pemberian</label>
+              <input type="text" id="dosage_form" value="Serbuk Liofilisasi untuk Infus Intravena" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-bpom-blue focus:outline-none" required>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1" data-i18n="lbl_classification">Klasifikasi Molekul</label>
+                <select id="product_type" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-bpom-blue focus:outline-none">
+                  <option value="BIOSIMILAR">Produk Biologi (Biosimilar)</option>
+                  <option value="BIOLOGIC_NOVEL">Produk Biologi Baru (Novel/Originator)</option>
+                  <option value="NCE">Zat Aktif Baru / NCE</option>
+                  <option value="GENERIC">Obat Copy / Generik</option>
+                  <option value="NEW_INDICATION">Indikasi Baru (Kategori 2)</option>
+                  <option value="NEW_FORM_STRENGTH">Bentuk/Kekuatan Baru (Kategori 3)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1" data-i18n="lbl_origin">Asal Pembuatan (Origin)</label>
+                <select id="origin" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-bpom-blue focus:outline-none">
+                  <option value="IMPORTED">Obat Impor (Luar Negeri)</option>
+                  <option value="LOCAL">Produksi Dalam Negeri (Lokal)</option>
+                  <option value="CONTRACT_MANUFACTURE">Kontrak Produksi (Tol Mfg)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Foreign GMP Status -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1" data-i18n="lbl_foreign_gmp">Status CPOB Pabrik Pembuat</label>
+              <select id="foreign_gmp_status" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-bpom-blue focus:outline-none">
+                <option value="DESK_EVALUATION_NEEDED">Pabrik Luar Negeri: Perlu Desk Evaluation BPOM (Rp 10 Juta)</option>
+                <option value="ONSITE_INSPECTION_NEEDED">Pabrik Luar Negeri: Perlu Inspeksi On-Site BPOM (Rp 50 Juta)</option>
+                <option value="VALID_BPOM_CERT">Pabrik Luar Negeri: Sudah Memiliki Surat Pengakuan BPOM</option>
+                <option value="LOCAL_CPOB">Pabrik Lokal: Memiliki Sertifikat CPOB BPOM Aktif</option>
+              </select>
+            </div>
+
+            <!-- SRA Approval Checkbox -->
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input type="checkbox" id="is_sra_approved" checked class="rounded text-bpom-blue focus:ring-bpom-blue">
+                <span class="text-xs font-semibold text-slate-800" data-i18n="lbl_sra_check">Telah Disetujui Otoritas Regulasi Terpercaya (SRA / WHO Listed)</span>
+              </label>
+              <div id="sra_detail_box" class="text-xs text-slate-600 pl-6 space-y-1">
+                <p class="text-[11px] text-slate-500" data-i18n="lbl_sra_hint">Contoh: EMA (Eropa), US FDA, PMDA (Jepang), Swissmedic, TGA (Australia), Health Canada.</p>
+                <input type="text" id="sra_countries" value="EMA, Health Canada" placeholder="Nama lembaga SRA..." class="w-full rounded border border-slate-300 px-2 py-1 text-xs">
+              </div>
+            </div>
+
+            <!-- Generic Specific: BE Study / BCS -->
+            <div id="generic_box" class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2 hidden">
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input type="checkbox" id="be_study_available" checked class="rounded text-bpom-blue focus:ring-bpom-blue">
+                <span class="text-xs font-semibold text-slate-800" data-i18n="lbl_be_check">Memiliki Laporan Uji Bioekivalensi (BE) In Vivo</span>
+              </label>
+              <div class="flex items-center space-x-3 text-xs pl-6">
+                <span>BCS Class:</span>
+                <select id="bcs_class" class="rounded border border-slate-300 px-2 py-1 text-xs">
+                  <option value="none">Bukan Biowaiver (Uji BE Penuh)</option>
+                  <option value="1">BCS Kelas 1 (Kelarutan Tinggi, Permeabilitas Tinggi)</option>
+                  <option value="3">BCS Kelas 3 (Kelarutan Tinggi, Permeabilitas Rendah)</option>
+                  <option value="2">BCS Kelas 2 / 4 (Wajib Uji BE)</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full bg-bpom-blue hover:bg-bpom-navy text-white font-bold py-2.5 px-4 rounded-lg shadow transition flex items-center justify-center gap-2 text-xs sm:text-sm">
+              <i class="fa-solid fa-calculator"></i>
+              <span data-i18n="btn_evaluate">Hitung Jalur, Biaya PNBP & Timeline</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Right Column: Results Display -->
+        <div class="lg:col-span-7 space-y-6">
+          
+          <!-- Key Decision Cards -->
+          <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
+              <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-clipboard-check text-emerald-600"></i>
+                <span data-i18n="res_title">Hasil Penilaian Jalur & Regulasi BPOM</span>
+              </h3>
+              <button onclick="downloadEvaluationDocx()" class="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
+                <i class="fa-solid fa-file-word"></i>
+                <span data-i18n="btn_download_docx">Unduh Dokumen Word (.docx)</span>
+              </button>
+            </div>
+
+            <!-- Badges Banner -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+                <span class="text-[11px] font-bold text-blue-800 tracking-wider uppercase" data-i18n="lbl_category_badge">Kategori Registrasi</span>
+                <h4 id="resCategoryName" class="text-sm font-bold text-bpom-navy mt-1">Kategori 1: Registrasi Baru</h4>
+                <p id="resCategoryBasis" class="text-[11px] text-blue-700 mt-0.5">PerBPOM No. 24/2017 Pasal 9 jo. PerBPOM 15/2019</p>
+              </div>
+
+              <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
+                <span class="text-[11px] font-bold text-emerald-800 tracking-wider uppercase" data-i18n="lbl_track_badge">Jalur Evaluasi & Waktu</span>
+                <h4 id="resTrackName" class="text-sm font-bold text-emerald-900 mt-1">Jalur 120 Hari Kerja (Reliance Parsial)</h4>
+                <p id="resTotalDays" class="text-[11px] text-emerald-700 mt-0.5 font-semibold">Total: 140 Hari Kerja (~9 Bulan Kalender)</p>
+              </div>
+            </div>
+
+            <!-- Reliance Banner if applicable -->
+            <div id="resRelianceBanner" class="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-900 mb-6 flex items-start gap-2">
+              <i class="fa-solid fa-certificate text-indigo-600 mt-0.5"></i>
+              <div>
+                <span class="font-bold">Mekanisme Evaluasi Reliance (PerBPOM 24/2023):</span>
+                <span id="resRelianceText">Produk memenuhi kriteria evaluasi reliance berdasarkan persetujuan otoritas SRA.</span>
+              </div>
+            </div>
+
+            <!-- PNBP Fees Table -->
+            <div class="mb-6">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span data-i18n="lbl_pnbp_table">Rincian Tarif PNBP Resmi (PP No. 32 Tahun 2017)</span>
+                <span class="text-emerald-700 font-bold" id="resTotalFeeHeader">Rp 111.000.000</span>
+              </h4>
+              <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                <table class="min-w-full divide-y divide-slate-200 text-xs">
+                  <thead class="bg-slate-50 text-slate-600 font-semibold">
+                    <tr>
+                      <th class="px-3 py-2 text-left">Kode</th>
+                      <th class="px-3 py-2 text-left">Komponen Biaya</th>
+                      <th class="px-3 py-2 text-left">Dasar Hukum</th>
+                      <th class="px-3 py-2 text-right">Nominal (IDR)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="resFeesTbody" class="divide-y divide-slate-100 bg-white">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                  <tfoot class="bg-slate-100 font-bold text-slate-900">
+                    <tr>
+                      <td colspan="3" class="px-3 py-2 text-right">TOTAL PNBP WAJIB BAYAR (SIMPONI):</td>
+                      <td id="resTotalFeeCell" class="px-3 py-2 text-right text-emerald-800 font-bold">Rp 111.000.000</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            <!-- Key Requirements -->
+            <div>
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2" data-i18n="lbl_submission_rules">Persyaratan Kunci & Ketentuan BPOM</h4>
+              <ul id="resKeyReqs" class="space-y-1.5 text-xs text-slate-600">
+                <!-- Populated dynamically -->
+              </ul>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ==================== TAB: DOSSIER EVALUATOR ==================== -->
+    <div id="dossierEvalTab" class="tab-content hidden">
+      <div class="space-y-6">
+
+        <!-- Top Overview & Sample Loaders -->
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <i class="fa-solid fa-file-signature text-purple-600"></i>
+              <span data-i18n="dossier_eval_title">Evaluasi Dossier Registrasi Obat Komprehensif (Parts I - IV)</span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5" data-i18n="dossier_eval_subtitle">Audit kesesuaian dokumen teknis terhadap pedoman evaluasi BPOM, penentuan skor kepatuhan, dan penerbitan draft Surat Tambahan Data</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-semibold text-slate-500">Muat Contoh:</span>
+            <button onclick="loadEvaluationSample('A')" class="px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition">
+              🧪 Biosimilar (MS)
+            </button>
+            <button onclick="loadEvaluationSample('B')" class="px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold hover:bg-amber-100 transition">
+              🧪 Generik (TD)
+            </button>
+            <button onclick="loadEvaluationSample('C')" class="px-2.5 py-1.5 rounded-lg border border-red-300 bg-red-50 text-red-800 text-xs font-semibold hover:bg-red-100 transition">
+              🧪 Onkologi (TMS)
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+          <!-- Left Column: Dossier Input Checklist -->
+          <div class="lg:col-span-5 bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-2">
+              <i class="fa-solid fa-list-check text-bpom-blue"></i>
+              <span>Parameter Evaluasi Berkas Dossier</span>
+            </h3>
+
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Nama Produk Obat</label>
+                <input type="text" id="eval_product_name" value="Herclonix 440 mg Lyophilized Powder" class="w-full rounded border border-slate-300 px-3 py-1.5 text-xs focus:ring-2 focus:ring-purple-600 focus:outline-none">
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">Jenis Molekul</label>
+                  <select id="eval_product_type" class="w-full rounded border border-slate-300 p-1.5 text-xs">
+                    <option value="BIOSIMILAR">Produk Biologi (Biosimilar)</option>
+                    <option value="GENERIC">Obat Generik / Copy</option>
+                    <option value="NCE">Zat Aktif Baru / NCE</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">Asal Produk</label>
+                  <select id="eval_origin" class="w-full rounded border border-slate-300 p-1.5 text-xs">
+                    <option value="IMPORTED">Impor (Luar Negeri)</option>
+                    <option value="LOCAL">Produksi Dalam Negeri</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Module 1: Admin & Legal -->
+              <div class="bg-purple-50/50 p-3 rounded-lg border border-purple-100 space-y-2">
+                <span class="font-bold text-purple-900 uppercase tracking-wider text-[11px]">Modul 1: Dokumen Administratif</span>
+                <div>
+                  <label class="block text-slate-600 mb-0.5">Status Pemenuhan CPOB / GMP</label>
+                  <select id="eval_gmp_status" class="w-full rounded border border-slate-300 p-1.5 text-xs">
+                    <option value="VALID_BPOM_RECOGNITION">Surat Pengakuan CPOB LN BPOM Aktif (MS)</option>
+                    <option value="VALID_LOCAL">CPOB Lokal Aktif (Memenuhi Syarat)</option>
+                    <option value="DESK_PENDING">Desk Evaluation BPOM Sedang Berjalan (TD)</option>
+                    <option value="NONE">Belum Memiliki Pengakuan BPOM (TMS)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-600 mb-0.5">Format CPP (Obat Impor)</label>
+                  <select id="eval_cpp_status" class="w-full rounded border border-slate-300 p-1.5 text-xs">
+                    <option value="WHO_VALID">Format WHO Valid & Masih Berlaku (MS)</option>
+                    <option value="INVALID">Bukan Format WHO / Kedaluwarsa (TMS)</option>
+                  </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                  <label class="flex items-center space-x-1.5 cursor-pointer">
+                    <input type="checkbox" id="eval_has_id_pil" checked class="rounded text-purple-600">
+                    <span class="text-slate-700">PIL Bhs Indonesia</span>
+                  </label>
+                  <label class="flex items-center space-x-1.5 cursor-pointer">
+                    <input type="checkbox" id="eval_has_halal" checked class="rounded text-purple-600">
+                    <span class="text-slate-700">Pernyataan Halal/Asal</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Module 2: Quality / CMC -->
+              <div class="bg-blue-50/50 p-3 rounded-lg border border-blue-100 space-y-2">
+                <span class="font-bold text-blue-900 uppercase tracking-wider text-[11px]">Modul 2: Dokumen Mutu (CMC)</span>
+                <div>
+                  <label class="block text-slate-600 mb-0.5">Validasi Proses Skala Komersial</label>
+                  <select id="eval_pv_batches" class="w-full rounded border border-slate-300 p-1.5 text-xs">
+                    <option value="3">3 Bets Komersial Tervalidasi Lengkap (MS)</option>
+                    <option value="1">Hanya 1-2 Bets Selesai (TD)</option>
+                    <option value="0">Hanya Protokol Validasi / Skala Lab (TMS)</option>
+                  </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-slate-600 mb-0.5">Zona Iklim Stabilitas</label>
+                    <select id="eval_stability_zone" class="w-full rounded border border-slate-300 p-1.5 text-xs">
+                      <option value="ZONE_4B">Zona IVb (30°C/75% RH) - MS</option>
+                      <option value="ZONE_2">Hanya Zona II (25°C/60%) - TMS</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-slate-600 mb-0.5">Durasi Real-Time</label>
+                    <select id="eval_stability_months" class="w-full rounded border border-slate-300 p-1.5 text-xs">
+                      <option value="12">>= 12 Bulan (MS)</option>
+                      <option value="6">6 Bulan (Minimal MS)</option>
+                      <option value="3">< 6 Bulan (TD)</option>
+                    </select>
+                  </div>
+                </div>
+                <label class="flex items-center space-x-1.5 cursor-pointer pt-1">
+                  <input type="checkbox" id="eval_stability_commitment" checked class="rounded text-blue-600">
+                  <span class="text-slate-700">Surat Komitmen Stabilitas Lanjutan Zona IVb</span>
+                </label>
+              </div>
+
+              <!-- Module 3 & 4: Non-Clinical & Clinical -->
+              <div class="bg-emerald-50/50 p-3 rounded-lg border border-emerald-100 space-y-2">
+                <span class="font-bold text-emerald-900 uppercase tracking-wider text-[11px]">Modul 3 & 4: Non-Klinis & Klinis / BE</span>
+                <div id="eval_generic_controls" class="space-y-2 hidden">
+                  <div>
+                    <label class="block text-slate-600 mb-0.5">Uji Bioekivalensi (BE) In Vivo</label>
+                    <select id="eval_be_status" class="w-full rounded border border-slate-300 p-1.5 text-xs">
+                      <option value="PASSED_OFFICIAL">BE Lolos CI 80-125% vs Inovator Resmi BPOM (MS)</option>
+                      <option value="FOREIGN_COMPARATOR">Komparator Luar Negeri Belum Diakui BPOM (TMS)</option>
+                      <option value="FAILED_OR_MISSING">Tidak Ada Uji BE / Gagal Kriteria (TMS)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-slate-600 mb-0.5">Uji Disolusi Terbanding (UDT) 3 Media</label>
+                    <select id="eval_udt_status" class="w-full rounded border border-slate-300 p-1.5 text-xs">
+                      <option value="COMPLETE_F2">Lengkap 3 Media (pH 1.2, 4.5, 6.8) f2 >= 50 (MS)</option>
+                      <option value="INCOMPLETE">Belum Ada / Hanya 1 Media pH (TD)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div id="eval_biologic_controls" class="space-y-2">
+                  <label class="flex items-center space-x-1.5 cursor-pointer">
+                    <input type="checkbox" id="eval_has_nonclinical" checked class="rounded text-emerald-600">
+                    <span class="text-slate-700">Studi Farmakologi & Toksikologi GLP Komparatif</span>
+                  </label>
+                  <label class="flex items-center space-x-1.5 cursor-pointer">
+                    <input type="checkbox" id="eval_has_clinical_trials" checked class="rounded text-emerald-600">
+                    <span class="text-slate-700">Uji Klinis Komparatif Fase 1 & 3 Efikasi/Keamanan (MS)</span>
+                  </label>
+                  <label class="flex items-center space-x-1.5 cursor-pointer">
+                    <input type="checkbox" id="eval_has_rmp" checked class="rounded text-emerald-600">
+                    <span class="text-slate-700">Rencana Manajemen Risiko (RMP) Khusus Indonesia</span>
+                  </label>
+                </div>
+              </div>
+
+              <button onclick="executeDossierEvaluation()" class="w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-2.5 px-4 rounded-lg shadow transition flex items-center justify-center gap-2 text-xs">
+                <i class="fa-solid fa-stamp"></i>
+                <span>Jalankan Evaluasi Dossier BPOM</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Right Column: Evaluation Results & Draft Surat Tambahan Data -->
+          <div class="lg:col-span-7 space-y-6">
+
+            <!-- Verdict & Score Banner -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
+                <div>
+                  <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-award text-purple-600"></i>
+                    <span>Keputusan Evaluasi Teknis BPOM</span>
+                  </h3>
+                  <p id="evalResultProductName" class="text-xs text-slate-500 mt-0.5">Herclonix 440 mg Lyophilized Powder</p>
+                </div>
+                <button onclick="downloadDossierDocx()" class="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-semibold shadow-sm transition">
+                  <i class="fa-solid fa-file-word"></i>
+                  <span>Unduh Laporan Evaluasi (.docx)</span>
+                </button>
+              </div>
+
+              <!-- Score Gauge & Status -->
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center md:col-span-1">
+                  <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Skor Kepatuhan</div>
+                  <div id="evalScoreGauge" class="text-3xl font-extrabold text-purple-700 mt-1">100%</div>
+                  <div class="w-full bg-slate-200 rounded-full h-2 mt-2">
+                    <div id="evalScoreBar" class="bg-purple-600 h-2 rounded-full" style="width: 100%"></div>
+                  </div>
+                </div>
+
+                <div id="evalVerdictBox" class="p-4 rounded-xl border md:col-span-2 bg-emerald-50 border-emerald-200 flex flex-col justify-center">
+                  <div class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Keputusan Penilai BPOM RI</div>
+                  <div id="evalVerdictTitle" class="text-base font-bold text-emerald-950 mt-0.5">MEMENUHI SYARAT (MS) - Siap Disetujui</div>
+                  <div id="evalVerdictRemarks" class="text-xs text-emerald-800 mt-1">Seluruh dokumen administratif, mutu, non-klinis, dan klinis telah memenuhi standar regulasi BPOM RI.</div>
+                </div>
+              </div>
+
+              <!-- Module Breakdown Table -->
+              <div class="mb-6">
+                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Penilaian Per Modul ACTD</h4>
+                <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                  <table class="min-w-full divide-y divide-slate-200 text-xs">
+                    <thead class="bg-slate-50 text-slate-600 font-semibold">
+                      <tr>
+                        <th class="px-3 py-2 text-left w-20">Status</th>
+                        <th class="px-3 py-2 text-left w-48">Parameter Modul</th>
+                        <th class="px-3 py-2 text-left">Catatan Penilai BPOM</th>
+                      </tr>
+                    </thead>
+                    <tbody id="evalModulesTbody" class="divide-y divide-slate-100 bg-white">
+                      <!-- Populated dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Draft Surat Permintaan Tambahan Data BPOM -->
+              <div class="border border-slate-200 rounded-xl overflow-hidden">
+                <div class="bg-slate-100 px-4 py-2.5 flex items-center justify-between">
+                  <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <i class="fa-solid fa-envelope-open-text text-amber-600"></i>
+                    <span>Konsep Surat Permintaan Tambahan Data (Draft BPOM Query Letter)</span>
+                  </span>
+                  <button onclick="copyQueryLetter()" class="text-[11px] font-semibold text-bpom-blue hover:underline flex items-center gap-1">
+                    <i class="fa-solid fa-copy"></i>
+                    <span>Salin Naskah</span>
+                  </button>
+                </div>
+                <div class="p-4 bg-slate-50 max-h-72 overflow-y-auto">
+                  <pre id="evalDraftLetter" class="text-[11px] font-mono text-slate-700 whitespace-pre-wrap leading-relaxed">Memuat draft surat...</pre>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==================== TAB 2: ACTD CHECKLIST ==================== -->
+    <div id="checklistTab" class="tab-content hidden">
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <i class="fa-solid fa-list-check text-bpom-blue"></i>
+              <span data-i18n="chk_title">Daftar Periksa Modul ACTD (ASEAN Common Technical Dossier)</span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-1" data-i18n="chk_subtitle">Format standar registrasi obat manusia di Indonesia berdasarkan Peraturan BPOM No. 24 Tahun 2017</p>
+          </div>
+          <button onclick="downloadEvaluationDocx()" class="inline-flex items-center gap-2 px-4 py-2 bg-bpom-blue hover:bg-bpom-navy text-white rounded-lg text-xs font-semibold shadow-sm transition">
+            <i class="fa-solid fa-file-word"></i>
+            <span data-i18n="btn_export_checklist">Ekspor Checklist Lengkap ke Word (.docx)</span>
+          </button>
+        </div>
+
+        <!-- ACTD Parts Accordion / Sections -->
+        <div class="space-y-4" id="actdChecklistContainer">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ==================== TAB 3: GAP CHECK AUDIT ==================== -->
+    <div id="gapCheckTab" class="tab-content hidden">
+      <div class="space-y-6">
+        
+        <!-- Audit Inputs Card -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <i class="fa-solid fa-magnifying-glass-chart text-red-600"></i>
+              <span data-i18n="gap_title">Simulasi Audit Kesenjangan Dossier (Gap-Check Pre-Submission)</span>
+            </h2>
+            <button onclick="loadScenario('3')" class="text-xs font-semibold text-bpom-blue hover:underline">
+              ⚡ Muat Contoh Dossier Onkologi dengan Gaps
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Kondisi Uji Stabilitas</label>
+              <select id="gap_stability_zone" class="w-full rounded border border-slate-300 p-2 text-xs">
+                <option value="ZONE_4B">Zona IVb (30°C/75% RH) - Sesuai BPOM</option>
+                <option value="ZONE_2">Hanya Zona II (25°C/60% RH) - GAP KRITIS!</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Durasi Stabilitas Real-Time</label>
+              <select id="gap_stability_months" class="w-full rounded border border-slate-300 p-2 text-xs">
+                <option value="12">>= 12 Bulan (Aman / Ideal)</option>
+                <option value="6">6 Bulan (Minimal Pengajuan)</option>
+                <option value="3">< 6 Bulan (GAP MAYOR!)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Format CPP (Obat Impor)</label>
+              <select id="gap_cpp_format" class="w-full rounded border border-slate-300 p-2 text-xs">
+                <option value="WHO_VALID">Format WHO Valid & Masih Berlaku</option>
+                <option value="NON_WHO">Bukan Format WHO / Kedaluwarsa (GAP KRITIS!)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Pengakuan CPOB BPOM</label>
+              <select id="gap_foreign_gmp" class="w-full rounded border border-slate-300 p-2 text-xs">
+                <option value="VALID">Sudah Ada Pengakuan CPOB BPOM RI</option>
+                <option value="NONE">Belum Memiliki Pengakuan BPOM (GAP KRITIS!)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Validasi Proses Komersial</label>
+              <select id="gap_process_val" class="w-full rounded border border-slate-300 p-2 text-xs">
+                <option value="3_BATCHES">3 Bets Komersial Tervalidasi Lengkap</option>
+                <option value="PROTOCOL_ONLY">Hanya Protokol / 1 Bets (GAP MAYOR!)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Komparator Uji BE (Generik)</label>
+              <select id="gap_be_comparator" class="w-full rounded border border-slate-300 p-2 text-xs">
+                <option value="BPOM_RECOGNIZED">Inovator Terdaftar Resmi di BPOM RI</option>
+                <option value="FOREIGN_UNVERIFIED">Komparator Luar Negeri Belum Diakui (GAP KRITIS!)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Uji Disolusi Terbanding (UDT)</label>
+              <select id="gap_udt" class="w-full rounded border border-slate-300 p-2 text-xs">
+                <option value="3_MEDIA">Lengkap 3 pH Media (1.2, 4.5, 6.8) & f2 >= 50</option>
+                <option value="MISSING">Belum Ada / Hanya 1 Media (GAP MAYOR!)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Brosur Pasien (PIL) Bhs Indonesia</label>
+              <select id="gap_pil_id" class="w-full rounded border border-slate-300 p-2 text-xs">
+                <option value="YES">Tersedia Naskah Bahasa Indonesia</option>
+                <option value="NO">Hanya Bahasa Asing / Inggris (GAP MAYOR!)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mt-4 flex justify-end">
+            <button onclick="runGapAudit()" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg shadow transition flex items-center gap-2">
+              <i class="fa-solid fa-virus-slash"></i>
+              <span data-i18n="btn_run_audit">Jalankan Audit Kepatuhan BPOM</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Audit Findings Output -->
+        <div id="gapAuditResultCard" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                <span data-i18n="audit_result_title">Hasil Evaluasi Audit & Kesiapan Registrasi</span>
+              </h3>
+              <p id="gapTargetProduct" class="text-xs text-slate-500 mt-0.5">Produk: Pemetrexed Disodium 500mg Powder for Injection</p>
+            </div>
+            <button onclick="downloadGapDocx()" class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
+              <i class="fa-solid fa-file-word"></i>
+              <span data-i18n="btn_download_gap_docx">Unduh Laporan Audit Gap-Check (.docx)</span>
+            </button>
+          </div>
+
+          <!-- Overall Status Banner -->
+          <div id="gapStatusBanner" class="p-4 rounded-xl border mb-6 bg-red-50 border-red-200">
+            <div class="flex items-center justify-between">
+              <h4 id="gapStatusText" class="text-sm font-bold text-red-800">RISIKO TINGGI: Berpotensi Ditolak pada Pra-Registrasi / Evaluasi</h4>
+              <div class="flex space-x-2 text-xs font-bold">
+                <span id="gapCountCritical" class="px-2.5 py-1 rounded-full badge-critical">4 Kritis</span>
+                <span id="gapCountMajor" class="px-2.5 py-1 rounded-full badge-major">3 Mayor</span>
+                <span id="gapCountMinor" class="px-2.5 py-1 rounded-full badge-minor">1 Minor</span>
+              </div>
+            </div>
+            <p id="gapStatusDesc" class="text-xs text-red-700 mt-2">Dossier memiliki temuan ketidaksesuaian kritis yang akan menyebabkan penolakan mutlak atau penghentian waktu evaluasi (clock-stop). Segera selesaikan langkah remediasi di bawah ini.</p>
+          </div>
+
+          <!-- Findings Table -->
+          <div class="overflow-x-auto border border-slate-200 rounded-lg">
+            <table class="min-w-full divide-y divide-slate-200 text-xs">
+              <thead class="bg-slate-50 text-slate-600 font-semibold">
+                <tr>
+                  <th class="px-3 py-2.5 text-left w-24">Severity</th>
+                  <th class="px-3 py-2.5 text-left w-64">Modul & Temuan Observasi</th>
+                  <th class="px-3 py-2.5 text-left w-64">Dampak & Dasar Regulasi</th>
+                  <th class="px-3 py-2.5 text-left">Protokol Tindakan Remediasi</th>
+                </tr>
+              </thead>
+              <tbody id="gapFindingsTbody" class="divide-y divide-slate-100 bg-white">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ==================== TAB 4: STATUTES & REGULATIONS ==================== -->
+    <div id="statutesTab" class="tab-content hidden">
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6">
+        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-book-bookmark text-bpom-blue"></i>
+          <span data-i18n="statutes_title">Kompilasi Dasar Hukum & Pedoman Teknis BPOM RI</span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs" id="statutesGrid">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4">
+      <p>BPOM Drug Regulatory Affairs AI Agent • Powered by Antigravity AI & Python Regulatory Engine</p>
+      <p class="text-[11px] text-slate-400 mt-1">Disusun sesuai ketentuan PerBPOM No. 24/2017 jo. 13/2021 & 24/2023, PP No. 32/2017, & ASEAN Common Technical Dossier (ACTD).</p>
+    </div>
+  </footer>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    let currentLang = 'ID';
+    let currentAssessment = null;
+    let currentProduct = null;
+    let currentChecklist = null;
+    let currentAuditResult = null;
+    let currentDossierEvalResult = null;
+
+    const DICTIONARY = {
+      ID: {
+        tab_pathway: "Penentuan Jalur & Biaya PNBP",
+        tab_dossier_eval: "Evaluasi Dossier (Dossier Evaluator)",
+        tab_checklist: "Daftar Periksa ACTD",
+        tab_gap: "Audit Kesenjangan Dossier (Gap-Check)",
+        tab_statutes: "Dasar Hukum & Regulasi BPOM",
+        dossier_eval_title: "Evaluasi Dossier Registrasi Obat Komprehensif (Parts I - IV)",
+        dossier_eval_subtitle: "Audit kesesuaian dokumen teknis terhadap pedoman evaluasi BPOM, penentuan skor kepatuhan, dan penerbitan draft Surat Tambahan Data",
+        form_title: "Parameter Produk & Pengajuan",
+        lbl_product_name: "Nama Dagang Obat (Brand Name)",
+        lbl_active_substance: "Zat Aktif (INN)",
+        lbl_strength: "Kekuatan / Dosis",
+        lbl_dosage_form: "Bentuk Sediaan & Rute Pemberian",
+        lbl_classification: "Klasifikasi Molekul",
+        lbl_origin: "Asal Pembuatan (Origin)",
+        lbl_foreign_gmp: "Status CPOB Pabrik Pembuat",
+        lbl_sra_check: "Telah Disetujui Otoritas Regulasi Terpercaya (SRA / WHO Listed)",
+        lbl_sra_hint: "Contoh: EMA (Eropa), US FDA, PMDA (Jepang), Swissmedic, TGA, Health Canada.",
+        lbl_be_check: "Memiliki Laporan Uji Bioekivalensi (BE) In Vivo",
+        btn_evaluate: "Hitung Jalur, Biaya PNBP & Timeline",
+        res_title: "Hasil Penilaian Jalur & Regulasi BPOM",
+        btn_download_docx: "Unduh Dokumen Word (.docx)",
+        lbl_category_badge: "Kategori Registrasi",
+        lbl_track_badge: "Jalur Evaluasi & Waktu",
+        lbl_pnbp_table: "Rincian Tarif PNBP Resmi (PP No. 32 Tahun 2017)",
+        lbl_submission_rules: "Persyaratan Kunci & Ketentuan BPOM",
+        chk_title: "Daftar Periksa Modul ACTD (ASEAN Common Technical Dossier)",
+        chk_subtitle: "Format standar registrasi obat manusia di Indonesia berdasarkan Peraturan BPOM No. 24 Tahun 2017",
+        btn_export_checklist: "Ekspor Checklist Lengkap ke Word (.docx)",
+        gap_title: "Simulasi Audit Kesenjangan Dossier (Gap-Check Pre-Submission)",
+        btn_run_audit: "Jalankan Audit Kepatuhan BPOM",
+        audit_result_title: "Hasil Evaluasi Audit & Kesiapan Registrasi",
+        btn_download_gap_docx: "Unduh Laporan Audit Gap-Check (.docx)",
+        statutes_title: "Kompilasi Dasar Hukum & Pedoman Teknis BPOM RI"
+      },
+      EN: {
+        tab_pathway: "Pathway Decision & PNBP Fees",
+        tab_dossier_eval: "Dossier Evaluator (Full Review)",
+        tab_checklist: "ACTD Checklist Explorer",
+        tab_gap: "Dossier Gap-Check & Audit",
+        tab_statutes: "BPOM Regulatory Framework",
+        dossier_eval_title: "Comprehensive Drug Dossier Technical Evaluation (Parts I - IV)",
+        dossier_eval_subtitle: "Technical compliance audit against BPOM criteria, score calculation, and draft query notice drafting",
+        form_title: "Product Profile & Parameters",
+        lbl_product_name: "Proprietary / Brand Name",
+        lbl_active_substance: "Active Substance (INN)",
+        lbl_strength: "Strength / Concentration",
+        lbl_dosage_form: "Dosage Form & Route of Admin",
+        lbl_classification: "Molecule Classification",
+        lbl_origin: "Manufacturing Origin",
+        lbl_foreign_gmp: "Manufacturing Site GMP Status",
+        lbl_sra_check: "Approved by Stringent Regulatory Authority (SRA / WHO Listed)",
+        lbl_sra_hint: "e.g., EMA (Europe), US FDA, PMDA (Japan), Swissmedic, TGA, Health Canada.",
+        lbl_be_check: "In Vivo Bioequivalence (BE) Trial Report Available",
+        btn_evaluate: "Calculate Pathway, PNBP Fees & Timelines",
+        res_title: "BPOM Regulatory Assessment Results",
+        btn_download_docx: "Download Word Dossier (.docx)",
+        lbl_category_badge: "Registration Category",
+        lbl_track_badge: "Evaluation Track & Timeline",
+        lbl_pnbp_table: "Official Statutory PNBP Fees Schedule (PP No. 32 of 2017)",
+        lbl_submission_rules: "Key BPOM Submission Requirements",
+        chk_title: "ACTD (ASEAN Common Technical Dossier) Checklists",
+        chk_subtitle: "Official human drug submission format in Indonesia per BPOM Regulation No. 24 of 2017",
+        btn_export_checklist: "Export Full Checklist to Word (.docx)",
+        gap_title: "Pre-Submission Dossier Gap-Check Audit Tool",
+        btn_run_audit: "Run BPOM Compliance Audit",
+        audit_result_title: "Audit Findings & Submission Readiness",
+        btn_download_gap_docx: "Download Gap Audit Report (.docx)",
+        statutes_title: "Indonesian BPOM Statutory Framework & Guidelines"
+      }
+    };
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.getElementById('langBtnID').className = (lang === 'ID')
+        ? 'px-3 py-1.5 rounded-md bg-bpom-blue text-white transition'
+        : 'px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition';
+      document.getElementById('langBtnEN').className = (lang === 'EN')
+        ? 'px-3 py-1.5 rounded-md bg-bpom-blue text-white transition'
+        : 'px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition';
+
+      // Update text
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (DICTIONARY[lang][key]) {
+          el.innerText = DICTIONARY[lang][key];
+        }
+      });
+
+      // Re-render results in new language if available
+      if (currentAssessment && currentProduct) {
+        renderAssessmentResults(currentAssessment);
+      }
+      if (currentAuditResult) {
+        renderAuditResults(currentAuditResult);
+      }
+      if (currentDossierEvalResult) {
+        renderDossierEvaluation(currentDossierEvalResult);
+      }
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(tabId).classList.remove('hidden');
+
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('border-bpom-blue', 'text-bpom-blue', 'border-purple-600', 'text-purple-600');
+        btn.classList.add('border-transparent', 'text-slate-500');
+      });
+
+      const activeBtnMap = {
+        pathwayTab: 'btnTabPathway',
+        dossierEvalTab: 'btnTabDossierEval',
+        checklistTab: 'btnTabChecklist',
+        gapCheckTab: 'btnTabGapCheck',
+        statutesTab: 'btnTabStatutes'
+      };
+      const activeBtn = document.getElementById(activeBtnMap[tabId]);
+      if (activeBtn) {
+        if (tabId === 'dossierEvalTab') {
+          activeBtn.classList.add('border-purple-600', 'text-purple-600');
+        } else {
+          activeBtn.classList.add('border-bpom-blue', 'text-bpom-blue');
+        }
+        activeBtn.classList.remove('border-transparent', 'text-slate-500');
+      }
+    }
+
+    // Toggle Generic options when Generic is selected
+    document.getElementById('product_type').addEventListener('change', function() {
+      const isGeneric = (this.value === 'GENERIC');
+      document.getElementById('generic_box').classList.toggle('hidden', !isGeneric);
+    });
+
+    document.getElementById('eval_product_type').addEventListener('change', function() {
+      const isGeneric = (this.value === 'GENERIC');
+      document.getElementById('eval_generic_controls').classList.toggle('hidden', !isGeneric);
+      document.getElementById('eval_biologic_controls').classList.toggle('hidden', isGeneric);
+    });
+
+    async function calculatePathway() {
+      const payload = {
+        product_name: document.getElementById('product_name').value,
+        active_substance: document.getElementById('active_substance').value,
+        strength: document.getElementById('strength').value,
+        dosage_form: document.getElementById('dosage_form').value,
+        product_type: document.getElementById('product_type').value,
+        origin: document.getElementById('origin').value,
+        foreign_gmp_status: document.getElementById('foreign_gmp_status').value,
+        is_sra_approved: document.getElementById('is_sra_approved').checked,
+        sra_countries: document.getElementById('sra_countries').value.split(',').map(s => s.trim()).filter(Boolean),
+        be_study_available: document.getElementById('be_study_available').checked,
+        bcs_class: document.getElementById('bcs_class').value === 'none' ? null : parseInt(document.getElementById('bcs_class').value)
+      };
+
+      currentProduct = payload;
+
+      try {
+        const res = await fetch('/api/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        currentAssessment = data.assessment;
+        currentChecklist = data.checklist;
+
+        renderAssessmentResults(currentAssessment);
+        renderChecklist(currentChecklist);
+      } catch (err) {
+        console.error("Evaluation failed:", err);
+        alert("Gagal melakukan evaluasi regulasi. Silakan periksa koneksi server.");
+      }
+    }
+
+    function renderAssessmentResults(assessment) {
+      const isID = (currentLang === 'ID');
+      document.getElementById('resCategoryName').innerText = isID ? assessment.category_name_id : assessment.category_name_en;
+      document.getElementById('resCategoryBasis').innerText = assessment.category_basis;
+      
+      document.getElementById('resTrackName').innerText = isID ? assessment.track_name_id : assessment.track_name_en;
+      document.getElementById('resTotalDays').innerText = isID
+        ? `Total: ${assessment.total_working_days} Hari Kerja (~${assessment.estimated_calendar_months} Bulan Kalender)`
+        : `Total: ${assessment.total_working_days} Working Days (~${assessment.estimated_calendar_months} Calendar Months)`;
+
+      // Reliance
+      const relBanner = document.getElementById('resRelianceBanner');
+      if (assessment.reliance_applicable) {
+        relBanner.classList.remove('hidden');
+        document.getElementById('resRelianceText').innerText = assessment.reliance_details;
+      } else {
+        relBanner.classList.add('hidden');
+      }
+
+      // Fees table
+      const formattedTotal = 'Rp ' + Number(assessment.total_fee_idr).toLocaleString('id-ID');
+      document.getElementById('resTotalFeeHeader').innerText = formattedTotal;
+      document.getElementById('resTotalFeeCell').innerText = formattedTotal;
+
+      const tbody = document.getElementById('resFeesTbody');
+      tbody.innerHTML = '';
+      assessment.fees.forEach((f, idx) => {
+        const tr = document.createElement('tr');
+        if (idx % 2 === 1) tr.className = 'bg-slate-50';
+        tr.innerHTML = `
+          <td class="px-3 py-2 font-mono text-[11px] text-slate-500">${f.code}</td>
+          <td class="px-3 py-2 font-medium text-slate-800">${f.component}</td>
+          <td class="px-3 py-2 text-slate-500">${f.basis}</td>
+          <td class="px-3 py-2 text-right font-semibold text-slate-900">Rp ${Number(f.amount_idr).toLocaleString('id-ID')}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Key Requirements
+      const ul = document.getElementById('resKeyReqs');
+      ul.innerHTML = '';
+      const reqList = isID ? assessment.key_requirements_id : assessment.key_requirements_en;
+      reqList.forEach(req => {
+        const li = document.createElement('li');
+        li.className = 'flex items-start gap-1.5';
+        li.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 mt-1 text-[10px]"></i> <span>${req}</span>`;
+        ul.appendChild(li);
+      });
+
+      if (assessment.risk_factors && assessment.risk_factors.length > 0) {
+        assessment.risk_factors.forEach(risk => {
+          const li = document.createElement('li');
+          li.className = 'flex items-start gap-1.5 text-red-600 font-semibold';
+          li.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-600 mt-1 text-[10px]"></i> <span>${risk}</span>`;
+          ul.appendChild(li);
+        });
+      }
+    }
+
+    function renderChecklist(chk) {
+      const container = document.getElementById('actdChecklistContainer');
+      container.innerHTML = '';
+      const isID = (currentLang === 'ID');
+
+      const parts = [
+        { title: isID ? "Bagian I: Dokumen Administratif & Informasi Produk" : "Part I: Administrative Documents & Product Info", items: chk.Part_I_Administrative },
+        { title: isID ? "Bagian II: Dokumen Mutu (Zat Aktif & Produk Jadi)" : "Part II: Quality Documents (Drug Substance & Product)", items: chk.Part_II_Quality },
+        { title: isID ? "Bagian III: Dokumen Non-Klinis (Dikecualikan untuk Obat Generik)" : "Part III: Non-Clinical Documents (Waived for Generics)", items: chk.Part_III_NonClinical },
+        { title: isID ? "Bagian IV: Dokumen Klinis (Efikasi, Keamanan, BE / Biosimilar)" : "Part IV: Clinical Documents (Efficacy, Safety, BE / Biosimilar)", items: chk.Part_IV_Clinical }
+      ];
+
+      parts.forEach(p => {
+        const sec = document.createElement('div');
+        sec.className = 'border border-slate-200 rounded-lg overflow-hidden';
+        
+        let rowsHtml = '';
+        p.items.forEach((item, idx) => {
+          const bg = idx % 2 === 1 ? 'bg-slate-50' : 'bg-white';
+          const badgeClass = item.required ? 'badge-ok' : 'badge-minor';
+          const badgeText = item.required ? (isID ? 'WAJIB' : 'MANDATORY') : 'WAIVED';
+          rowsHtml += `
+            <tr class="${bg}">
+              <td class="px-3 py-2 font-mono text-[11px] text-slate-500 w-16">${item.code}</td>
+              <td class="px-3 py-2 font-semibold text-slate-800 w-72">${isID ? item.title_id : item.title_en}</td>
+              <td class="px-3 py-2 text-center w-24">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${badgeText}</span>
+              </td>
+              <td class="px-3 py-2 text-slate-600 text-[11px]">${isID ? item.notes_id : item.notes_en}</td>
+            </tr>
+          `;
+        });
+
+        sec.innerHTML = `
+          <div class="bg-slate-100 px-4 py-2.5 font-bold text-xs text-bpom-navy flex items-center justify-between">
+            <span>${p.title}</span>
+            <span class="text-[11px] text-slate-500 font-normal">${p.items.length} Elements</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-xs">
+              <tbody class="divide-y divide-slate-100">${rowsHtml}</tbody>
+            </table>
+          </div>
+        `;
+        container.appendChild(sec);
+      });
+    }
+
+    async function runGapAudit() {
+      const payload = {
+        stability_zone: document.getElementById('gap_stability_zone').value,
+        stability_months: parseInt(document.getElementById('gap_stability_months').value),
+        cpp_format: document.getElementById('gap_cpp_format').value,
+        foreign_gmp: document.getElementById('gap_foreign_gmp').value,
+        process_val: document.getElementById('gap_process_val').value,
+        be_comparator: document.getElementById('gap_be_comparator').value,
+        udt: document.getElementById('gap_udt').value,
+        pil_id: document.getElementById('gap_pil_id').value,
+        product_name: currentProduct ? currentProduct.product_name : "Pemetrexed Disodium 500mg Powder for Injection"
+      };
+
+      try {
+        const res = await fetch('/api/gap-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        currentAuditResult = data;
+        renderAuditResults(data);
+      } catch (err) {
+        console.error("Gap audit failed:", err);
+      }
+    }
+
+    function renderAuditResults(data) {
+      const isID = (currentLang === 'ID');
+      document.getElementById('gapTargetProduct').innerText = isID
+        ? `Produk: ${data.product_name || 'Target Submission Drug'}`
+        : `Product: ${data.product_name || 'Target Submission Drug'}`;
+      
+      document.getElementById('gapStatusText').innerText = isID ? data.status_text_id : data.status_text_en;
+      document.getElementById('gapCountCritical').innerText = `${data.critical_count} Critical`;
+      document.getElementById('gapCountMajor').innerText = `${data.major_count} Major`;
+      document.getElementById('gapCountMinor').innerText = `${data.minor_count} Minor`;
+
+      const tbody = document.getElementById('gapFindingsTbody');
+      tbody.innerHTML = '';
+      
+      data.findings.forEach(f => {
+        const tr = document.createElement('tr');
+        const badgeClass = f.severity === 'CRITICAL' ? 'badge-critical' : (f.severity === 'MAJOR' ? 'badge-major' : 'badge-minor');
+        tr.innerHTML = `
+          <td class="px-3 py-2.5 align-top">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${f.severity}</span>
+            <div class="text-[10px] font-mono text-slate-400 mt-1">${f.item_code}</div>
+          </td>
+          <td class="px-3 py-2.5 align-top">
+            <div class="font-bold text-slate-800 text-[11px]">${f.module}</div>
+            <div class="font-semibold text-slate-700 mt-0.5">${isID ? f.title_id : f.title_en}</div>
+            <div class="text-[11px] text-slate-500 mt-1">${isID ? f.observation_id : f.observation_en}</div>
+          </td>
+          <td class="px-3 py-2.5 align-top">
+            <div class="text-slate-700 text-[11px]">${isID ? f.impact_id : f.impact_en}</div>
+            <div class="text-[10px] text-blue-700 font-semibold mt-1">Dasar: ${f.bpom_basis}</div>
+          </td>
+          <td class="px-3 py-2.5 align-top text-slate-800 text-[11px] font-medium bg-slate-50">
+            ${isID ? f.remediation_id : f.remediation_en}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function loadScenario(id) {
+      if (!id) return;
+      try {
+        const res = await fetch(`/api/scenarios/${id}`);
+        const data = await res.json();
+        
+        if (id === '1' || id === '2') {
+          switchTab('pathwayTab');
+          document.getElementById('product_name').value = data.product_name;
+          document.getElementById('active_substance').value = data.active_substance;
+          document.getElementById('strength').value = data.strength;
+          document.getElementById('dosage_form').value = data.dosage_form;
+          document.getElementById('product_type').value = data.product_type;
+          document.getElementById('origin').value = data.origin;
+          document.getElementById('foreign_gmp_status').value = data.foreign_gmp_status;
+          document.getElementById('is_sra_approved').checked = data.is_sra_approved;
+          document.getElementById('sra_countries').value = data.sra_countries ? data.sra_countries.join(', ') : '';
+          document.getElementById('be_study_available').checked = data.be_study_available || false;
+          
+          document.getElementById('product_type').dispatchEvent(new Event('change'));
+          calculatePathway();
+        } else if (id === '3') {
+          switchTab('gapCheckTab');
+          document.getElementById('gap_stability_zone').value = 'ZONE_2';
+          document.getElementById('gap_stability_months').value = '12';
+          document.getElementById('gap_cpp_format').value = 'NON_WHO';
+          document.getElementById('gap_foreign_gmp').value = 'NONE';
+          document.getElementById('gap_process_val').value = 'PROTOCOL_ONLY';
+          document.getElementById('gap_be_comparator').value = 'FOREIGN_UNVERIFIED';
+          document.getElementById('gap_udt').value = 'MISSING';
+          document.getElementById('gap_pil_id').value = 'NO';
+          runGapAudit();
+        } else if (id === 'eval_a') {
+          loadEvaluationSample('A');
+        } else if (id === 'eval_b') {
+          loadEvaluationSample('B');
+        } else if (id === 'eval_c') {
+          loadEvaluationSample('C');
+        }
+      } catch (e) {
+        console.error("Failed to load scenario", e);
+      }
+    }
+
+    async function executeDossierEvaluation() {
+      const isGeneric = (document.getElementById('eval_product_type').value === 'GENERIC');
+      const payload = {
+        product_name: document.getElementById('eval_product_name').value,
+        product_type: document.getElementById('eval_product_type').value,
+        origin: document.getElementById('eval_origin').value,
+        gmp_status: document.getElementById('eval_gmp_status').value,
+        cpp_status: document.getElementById('eval_cpp_status').value,
+        has_indonesian_pil: document.getElementById('eval_has_id_pil').checked,
+        has_halal_declaration: document.getElementById('eval_has_halal').checked,
+        process_validation_batches: parseInt(document.getElementById('eval_pv_batches').value),
+        stability_zone: document.getElementById('eval_stability_zone').value,
+        stability_months: parseInt(document.getElementById('eval_stability_months').value),
+        has_stability_commitment: document.getElementById('eval_stability_commitment').checked,
+        // Generic vs Biologic
+        has_be_study: isGeneric ? (document.getElementById('eval_be_status').value !== 'FAILED_OR_MISSING') : false,
+        be_ci_passed: isGeneric ? (document.getElementById('eval_be_status').value === 'PASSED_OFFICIAL') : false,
+        comparator_ok: isGeneric ? (document.getElementById('eval_be_status').value !== 'FOREIGN_COMPARATOR') : true,
+        has_udt_3_media: isGeneric ? (document.getElementById('eval_udt_status').value === 'COMPLETE_F2') : true,
+        has_nonclinical_studies: !isGeneric ? document.getElementById('eval_has_nonclinical').checked : true,
+        has_clinical_trials: !isGeneric ? document.getElementById('eval_has_clinical_trials').checked : false,
+        has_rmp: !isGeneric ? document.getElementById('eval_has_rmp').checked : false
+      };
+
+      try {
+        const res = await fetch('/api/evaluate-dossier', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        currentDossierEvalResult = data;
+        renderDossierEvaluation(data);
+      } catch (err) {
+        console.error("Dossier evaluation failed:", err);
+      }
+    }
+
+    function renderDossierEvaluation(data) {
+      const isID = (currentLang === 'ID');
+      document.getElementById('evalResultProductName').innerText = data.product_name;
+      document.getElementById('evalScoreGauge').innerText = `${data.compliance_score}%`;
+      document.getElementById('evalScoreBar').style.width = `${data.compliance_score}%`;
+
+      const vBox = document.getElementById('evalVerdictBox');
+      const vTitle = document.getElementById('evalVerdictTitle');
+      const vRemarks = document.getElementById('evalVerdictRemarks');
+
+      vTitle.innerText = isID ? data.verdict_title_id : data.verdict_title_en;
+      vRemarks.innerText = isID ? data.summary_remarks_id : data.summary_remarks_en;
+
+      if (data.verdict_code === 'MS') {
+        vBox.className = 'p-4 rounded-xl border md:col-span-2 bg-emerald-50 border-emerald-200 flex flex-col justify-center';
+        vTitle.className = 'text-base font-bold text-emerald-950 mt-0.5';
+        vRemarks.className = 'text-xs text-emerald-800 mt-1';
+        document.getElementById('evalScoreBar').className = 'bg-emerald-600 h-2 rounded-full';
+        document.getElementById('evalScoreGauge').className = 'text-3xl font-extrabold text-emerald-700 mt-1';
+      } else if (data.verdict_code === 'TD') {
+        vBox.className = 'p-4 rounded-xl border md:col-span-2 bg-amber-50 border-amber-200 flex flex-col justify-center';
+        vTitle.className = 'text-base font-bold text-amber-950 mt-0.5';
+        vRemarks.className = 'text-xs text-amber-800 mt-1';
+        document.getElementById('evalScoreBar').className = 'bg-amber-500 h-2 rounded-full';
+        document.getElementById('evalScoreGauge').className = 'text-3xl font-extrabold text-amber-600 mt-1';
+      } else {
+        vBox.className = 'p-4 rounded-xl border md:col-span-2 bg-red-50 border-red-200 flex flex-col justify-center';
+        vTitle.className = 'text-base font-bold text-red-950 mt-0.5';
+        vRemarks.className = 'text-xs text-red-800 mt-1';
+        document.getElementById('evalScoreBar').className = 'bg-red-600 h-2 rounded-full';
+        document.getElementById('evalScoreGauge').className = 'text-3xl font-extrabold text-red-700 mt-1';
+      }
+
+      // Render module breakdown table
+      const tbody = document.getElementById('evalModulesTbody');
+      tbody.innerHTML = '';
+      data.module_results.forEach(m => {
+        const tr = document.createElement('tr');
+        let badgeClass = 'badge-minor';
+        if (m.status === 'MS') badgeClass = 'badge-ok';
+        else if (m.status === 'TD') badgeClass = 'badge-major';
+        else if (m.status === 'TMS') badgeClass = 'badge-critical';
+
+        tr.innerHTML = `
+          <td class="px-3 py-2 align-top">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeClass}">[${m.status}]</span>
+            <div class="text-[10px] text-slate-400 font-mono mt-0.5">${m.score}/${m.max_score}</div>
+          </td>
+          <td class="px-3 py-2 align-top">
+            <div class="font-bold text-slate-800 text-[11px]">${m.module}</div>
+            <div class="text-slate-600 font-medium text-[11px]">${isID ? m.title_id : m.title_en}</div>
+          </td>
+          <td class="px-3 py-2 align-top text-slate-700 text-[11px]">
+            ${isID ? m.evaluator_notes_id : m.evaluator_notes_en}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Draft Query Letter
+      document.getElementById('evalDraftLetter').innerText = isID ? data.draft_letter_id : data.draft_letter_en;
+    }
+
+    function copyQueryLetter() {
+      const text = document.getElementById('evalDraftLetter').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Konsep Surat Permintaan Tambahan Data telah disalin ke clipboard!");
+      });
+    }
+
+    function loadEvaluationSample(type) {
+      switchTab('dossierEvalTab');
+      if (type === 'A') { // Biosimilar (MS)
+        document.getElementById('eval_product_name').value = "Herclonix 440 mg Lyophilized Powder";
+        document.getElementById('eval_product_type').value = "BIOSIMILAR";
+        document.getElementById('eval_origin').value = "IMPORTED";
+        document.getElementById('eval_gmp_status').value = "VALID_BPOM_RECOGNITION";
+        document.getElementById('eval_cpp_status').value = "WHO_VALID";
+        document.getElementById('eval_has_id_pil').checked = true;
+        document.getElementById('eval_has_halal').checked = true;
+        document.getElementById('eval_pv_batches').value = "3";
+        document.getElementById('eval_stability_zone').value = "ZONE_4B";
+        document.getElementById('eval_stability_months').value = "12";
+        document.getElementById('eval_stability_commitment').checked = true;
+        document.getElementById('eval_has_nonclinical').checked = true;
+        document.getElementById('eval_has_clinical_trials').checked = true;
+        document.getElementById('eval_has_rmp').checked = true;
+      } else if (type === 'B') { // Generik Lokal (TD - butuh UDT & komitmen)
+        document.getElementById('eval_product_name').value = "Metforin 500 mg Film-Coated Tablet";
+        document.getElementById('eval_product_type').value = "GENERIC";
+        document.getElementById('eval_origin').value = "LOCAL";
+        document.getElementById('eval_gmp_status').value = "VALID_LOCAL";
+        document.getElementById('eval_has_id_pil').checked = true;
+        document.getElementById('eval_has_halal').checked = true;
+        document.getElementById('eval_pv_batches').value = "3";
+        document.getElementById('eval_stability_zone').value = "ZONE_4B";
+        document.getElementById('eval_stability_months').value = "6";
+        document.getElementById('eval_stability_commitment').checked = false; // missing
+        document.getElementById('eval_be_status').value = "PASSED_OFFICIAL";
+        document.getElementById('eval_udt_status').value = "INCOMPLETE"; // missing UDT
+      } else if (type === 'C') { // Onkologi Impor (TMS - Gagal Stabilitas & CPP)
+        document.getElementById('eval_product_name').value = "Pemetrexed Disodium 500mg Powder for Injection";
+        document.getElementById('eval_product_type').value = "GENERIC";
+        document.getElementById('eval_origin').value = "IMPORTED";
+        document.getElementById('eval_gmp_status').value = "NONE";
+        document.getElementById('eval_cpp_status').value = "INVALID";
+        document.getElementById('eval_has_id_pil').checked = false;
+        document.getElementById('eval_has_halal').checked = false;
+        document.getElementById('eval_pv_batches').value = "0";
+        document.getElementById('eval_stability_zone').value = "ZONE_2"; // FATAL
+        document.getElementById('eval_stability_months').value = "12";
+        document.getElementById('eval_stability_commitment').checked = false;
+        document.getElementById('eval_be_status').value = "FOREIGN_COMPARATOR"; // FATAL
+        document.getElementById('eval_udt_status').value = "INCOMPLETE";
+      }
+
+      document.getElementById('eval_product_type').dispatchEvent(new Event('change'));
+      executeDossierEvaluation();
+    }
+
+    async function downloadDossierDocx() {
+      if (!currentDossierEvalResult) {
+        alert("Silakan jalankan evaluasi dossier terlebih dahulu.");
+        return;
+      }
+      const product = {
+        product_name: document.getElementById('eval_product_name').value,
+        product_type: document.getElementById('eval_product_type').value,
+        origin: document.getElementById('eval_origin').value,
+        dosage_form: "Sediaan Injeksi / Oral Terdaftar",
+        strength: "Kekuatan Terdaftar"
+      };
+
+      const response = await fetch('/api/export-dossier-docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          evaluation_result: currentDossierEvalResult,
+          product: product,
+          language: currentLang
+        })
+      });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BPOM_Dossier_Evaluation_Report_${product.product_name.replace(/[^a-zA-Z0-9]/g, '_')}_${currentLang}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    async function downloadEvaluationDocx() {
+      if (!currentProduct || !currentAssessment) {
+        alert("Silakan hitung jalur evaluasi terlebih dahulu.");
+        return;
+      }
+      const response = await fetch('/api/export-docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: currentProduct, language: currentLang })
+      });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BPOM_Dossier_Evaluation_${currentProduct.product_name.replace(/[^a-zA-Z0-9]/g, '_')}_${currentLang}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    async function downloadGapDocx() {
+      if (!currentAuditResult) {
+        alert("Silakan jalankan audit kesenjangan terlebih dahulu.");
+        return;
+      }
+      const response = await fetch('/api/export-gap-docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audit_result: currentAuditResult, product: currentProduct || { product_name: "Pemetrexed Disodium 500mg" }, language: currentLang })
+      });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `BPOM_Dossier_Gap_Audit_${currentLang}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    // Load statutes on init
+    async function loadStatutes() {
+      try {
+        const res = await fetch('/api/statutes');
+        const data = await res.json();
+        const grid = document.getElementById('statutesGrid');
+        grid.innerHTML = '';
+        Object.entries(data).forEach(([k, item]) => {
+          const card = document.createElement('div');
+          card.className = 'p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1.5';
+          card.innerHTML = `
+            <div class="text-[11px] font-bold text-bpom-blue uppercase">${item.abbreviation}</div>
+            <h4 class="font-bold text-slate-800 text-xs">${item.title}</h4>
+            <p class="text-[11px] text-slate-600">${item.description}</p>
+          `;
+          grid.appendChild(card);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Initial calculation on load
+    window.addEventListener('DOMContentLoaded', () => {
+      calculatePathway();
+      loadStatutes();
+      runGapAudit();
+      executeDossierEvaluation();
+    });
+  </script>
+</body>
+</html>
